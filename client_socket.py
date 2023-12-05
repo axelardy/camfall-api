@@ -11,7 +11,6 @@ cap = cv2.VideoCapture('test.mp4')
 
 new_frame_available = True
 result = None
-frame_counter = 0
 
 @sio.on('fall_detection_result')
 def handle_fall_detection_result(res):
@@ -24,8 +23,6 @@ while True:
         # Break the loop when the video ends
         break
 
-    frame_counter += 1
-
     _, img_encoded = cv2.imencode('.jpg', frame)
     image_data = img_encoded.tobytes()
 
@@ -33,23 +30,21 @@ while True:
 
     # Wait for the result
     while result is None:
-        sio.sleep(0.1)  # Small delay to avoid busy-waiting
+        sio.sleep(0)  # Small delay to avoid busy-waiting
 
     print(result)
     
-    if frame_counter % 3 == 0:
-        # Perform inference only every 3 frames
-        if result['fall_detected']:
-            fall_location = result['fall_box']
-            xmin, ymin, xmax, ymax = (
-                int(fall_location['xmin']),
-                int(fall_location['ymin']),
-                int(fall_location['xmax']),
-                int(fall_location['ymax'])
-            )
+    if result['fall_detected']:
+        fall_location = result['fall_box']
+        xmin, ymin, xmax, ymax = (
+            int(fall_location['xmin']),
+            int(fall_location['ymin']),
+            int(fall_location['xmax']),
+            int(fall_location['ymax'])
+        )
 
-            # Draw a rectangle on the frame
-            cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (0, 0, 255), 2)
+        # Draw a rectangle on the frame
+        cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (0, 0, 255), 2)
 
     # Reset the result and flag for the next iteration
     result = None

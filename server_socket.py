@@ -22,7 +22,7 @@ def index():
 def handle_image(image_data):
     image_np = np.frombuffer(image_data, np.uint8)
     image = cv2.imdecode(image_np, cv2.IMREAD_COLOR)
-    results = model(image, conf=0.75, verbose=False)
+    results = model(image, conf=0.85, verbose=False)
     
     fall_box = results[0].boxes.cpu().numpy().xyxy
     print(fall_box.size)

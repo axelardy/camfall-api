@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fall Detection</title>
+    <!-- Include Socket.IO library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
+
+
+    </script>
+</head>
+<body>
+    <h1>Fall Detection</h1>
+    <div id="result"></div>
+    <img id="image" src="" alt="Fall Detected" width="640" height="480">
+
+    <script type="text/javascript" charset="UTF-8">
+        // import { io } from "https://cdn.socket.io/4.7.2/socket.io.esm.min.js";
+        // Connect to the Socket.IO server
+        const socket = io('http://' + document.domain + ':' + location.port );
+        console.log('http://' + document.domain + ':' + location.port)
+        // Listen for the "fall_detection_result" event
+        socket.on('connect', function() {
+            console.log('connected')
+        });
+        // socket.emit('test',true)
+        console.log('test')
+        socket.on('fall_detection_result', function(response) {
+            // Update the UI based on the respon se
+            console.log('masuk')
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = response.fall_detected ? 'Fall Detected' : 'No Fall Detected';
+            console.log(response.fall_detected)
+            // Display the image (assuming response.image is a base64 encoded image)
+            const imgElement = document.getElementById('image')
+            imgElement.src = 'data:image/jpg;base64,' + response.image;
+
+        });
+        socket.on('test',function(response){
+            console.log(response)
+        })
+        </script>
+    
+
+</body>
+</html>

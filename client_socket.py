@@ -26,13 +26,13 @@ while True:
     _, img_encoded = cv2.imencode('.jpg', frame)
     image_data = img_encoded.tobytes()
 
-    sio.emit('image', image_data)
+    sio.emit('image_data', image_data)
 
     # Wait for the result
     while result is None:
         sio.sleep(0)  # Small delay to avoid busy-waiting
 
-    print(result)
+    # print(result)
     
     if result['fall_detected']:
         fall_location = result['fall_box']
@@ -42,7 +42,7 @@ while True:
             int(fall_location['xmax']),
             int(fall_location['ymax'])
         )
-
+        print('detected')
         # Draw a rectangle on the frame
         cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (0, 0, 255), 2)
 

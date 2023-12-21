@@ -1,60 +1,34 @@
-import cv2
-import socketio
-import numpy as np
 
-sio = socketio.Client()
+# Welcome to PyShine
+# lets make the client code
+# In this code client is sending video to server
+import socket,cv2, pickle,struct
+import pyshine as ps # pip install pyshine
+import imutils # pip install imutils
+camera = False
+if camera == True:
+	vid = cv2.VideoCapture(0)
+else:
+	vid = cv2.VideoCapture('test.mp4')
+client_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+host_ip = '192.168.2.151' # Here according to your server ip write the address
 
-api_url = 'http://localhost:5000'
+port = 5000
+client_socket.connect((host_ip,port))
 
-sio.connect(api_url)
-cap = cv2.VideoCapture('test.mp4')
+if client_socket: 
+	while (vid.isOpened()):
+		try:
+			img, frame = vid.read()
+			frame = imutils.resize(frame,width=380)
+			a = pickle.dumps(frame)
+			message = struct.pack("Q",len(a))+a
+			client_socket.sendall(message)
+			cv2.imshow(f"TO: {host_ip}",frame)
+			key = cv2.waitKey(1) & 0xFF
+			if key == ord("q"):
+				client_socket.close()
+		except:
+			print('VIDEO FINISHED!')
+			break
 
-new_frame_available = True
-result = None
-
-@sio.on('fall_detection_result')
-def handle_fall_detection_result(res):
-    global result
-    result = res
-
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        # Break the loop when the video ends
-        break
-
-    _, img_encoded = cv2.imencode('.jpg', frame)
-    image_data = img_encoded.tobytes()
-
-    sio.emit('image_data', image_data)
-
-    # Wait for the result
-    while result is None:
-        sio.sleep(0)  # Small delay to avoid busy-waiting
-
-    # print(result)
-    
-    if result['fall_detected']:
-        fall_location = result['fall_box']
-        xmin, ymin, xmax, ymax = (
-            int(fall_location['xmin']),
-            int(fall_location['ymin']),
-            int(fall_location['xmax']),
-            int(fall_location['ymax'])
-        )
-        print('detected')
-        # Draw a rectangle on the frame
-        cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (0, 0, 255), 2)
-
-    # Reset the result and flag for the next iteration
-    result = None
-
-    # Display the frame with the rectangle
-    cv2.imshow("frame", frame)
-
-    if cv2.waitKey(1) & 0xFF == ord("q"):
-        break
-
-sio.disconnect()
-cap.release()
-cv2.destroyAllWindows()

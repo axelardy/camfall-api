@@ -2,8 +2,7 @@
 # Welcome to PyShine
 # In this video server is receiving video from clients.
 # Lets import the libraries
-import socket, cv2, pickle, struct
-import imutils
+import socket, cv2, struct
 import threading
 import pyshine as ps # pip install pyshine
 import cv2
@@ -16,7 +15,7 @@ server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 host_name  = socket.gethostname()
 host_ip = socket.gethostbyname(host_name)
 print('HOST IP:',host_ip)
-port = 9999
+port = 5000
 socket_address = (host_ip,port)
 server_socket.bind(socket_address)
 server_socket.listen()
@@ -26,6 +25,15 @@ def show_client(addr,client_socket):
 	try:
 		print('CLIENT {} CONNECTED!'.format(addr))
 		if client_socket: # if a client socket exists
+			
+			# username = client_socket.recv(1024).decode()
+			# password = client_socket.recv(1024).decode()
+
+			# if username != "admin" and password != "admin":
+			# 	print(f"CLIENT {addr} DISCONNECTED")
+			# 	client_socket.close()
+			# 	return
+
 			data = b""
 			payload_size = struct.calcsize("Q")
 			while True:
@@ -71,7 +79,7 @@ while True:
 	client_socket,addr = server_socket.accept()
 	thread = threading.Thread(target=show_client, args=(addr,client_socket))
 	thread.start()
-	print("TOTAL CLIENTS ",threading.activeCount() - 1)
+	print("TOTAL CLIENTS ",threading.active_count() - 1)
 	
 				
 

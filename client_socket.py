@@ -25,7 +25,7 @@ def run_connection(camera=True, host_ip=socket.gethostbyname(socket.gethostname(
 			while (vid.isOpened()):
 				try:
 					img, frame = vid.read()
-					frame = imutils.resize(frame,width=720)
+					frame = imutils.resize(frame,width=360)
 
 					# more efficient solution
 					result, buffer = cv2.imencode('.jpg', frame)
@@ -63,7 +63,7 @@ def run_connection(camera=True, host_ip=socket.gethostbyname(socket.gethostname(
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--camera', type=bool, default=True)
-	parser.add_argument('--host_ip', type=str, default='169.254.83.107')
+	parser.add_argument('--host_ip', type=str, default='140.138.172.215')
 	parser.add_argument('--port', type=int, default=5000)
 	args = parser.parse_args()
 

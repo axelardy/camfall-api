@@ -5,10 +5,10 @@ import time
 import argparse
 import getpass
 
-def run_connection(camera=True, host_ip=socket.gethostbyname(socket.gethostname()), port=5000, login_id="admin", password="admin"):
+def run_connection(camera=True, host_ip=socket.gethostbyname(socket.gethostname()), port=5000):
 	try:
 		if camera == True:
-			vid = cv2.VideoCapture(0)
+			vid = cv2.VideoCapture(1)
 		else:
 			vid = cv2.VideoCapture('test.mp4')
 		client_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -17,7 +17,20 @@ def run_connection(camera=True, host_ip=socket.gethostbyname(socket.gethostname(
 		# client_socket.send('username'.encode())
 		# client_socket.send('password'.encode())
 
-		if client_socket: 
+		if client_socket:
+			response = client_socket.recv(2048)
+
+			login_id = input(response.decode())
+			client_socket.send(login_id.encode())
+
+			response = client_socket.recv(2048)
+			password = getpass.getpass(response.decode())
+			client_socket.send(str.encode(password))
+
+			response = client_socket.recv(2048)
+			response = response.decode()
+			print(response)
+
 			start_time = time.time()
 			total_bytes_sent = 0
 			last_print_time = start_time
@@ -63,12 +76,9 @@ def run_connection(camera=True, host_ip=socket.gethostbyname(socket.gethostname(
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--camera', type=bool, default=True)
-	parser.add_argument('--host_ip', type=str, default='140.138.172.215')
+	parser.add_argument('--host_ip', type=str, default=socket.gethostbyname(socket.gethostname()))
 	parser.add_argument('--port', type=int, default=5000)
 	args = parser.parse_args()
 
-	login_id = input("Enter your login id: ")
-	password = getpass.getpass("Enter your password: ")
 
-
-	run_connection(camera=args.camera, host_ip=args.host_ip, port=args.port, login_id=login_id, password=password)
+	run_connection(camera=args.camera, host_ip=args.host_ip, port=args.port)

@@ -1,10 +1,12 @@
 
 import socket, cv2, struct
-
 import pyshine as ps 
 import cv2
 from ultralytics import YOLO
 import numpy as np
+import hashlib
+
+from server_script.login_script.db_engine import *
 
 model = YOLO("../models/best.pt")
 
@@ -18,19 +20,55 @@ server_socket.bind(socket_address)
 server_socket.listen()
 print("Listening at",socket_address)
 
+HashTable = {}
+
+
 def show_client(addr,client_socket):
 	try:
 		print('CLIENT {} CONNECTED!'.format(addr))
 		if client_socket: # if a client socket exists
-			
-			# username = client_socket.recv(1024).decode()
-			# password = client_socket.recv(1024).decode()
+			client_socket.send(str.encode('ENTER USERNAME : ')) # Request Username
+			name = client_socket.recv(2048)
+			client_socket.send(str.encode('ENTER PASSWORD : ')) # Request Password
+			password = client_socket.recv(2048)
+			password = password.decode()
+			username = name.decode()			
 
-			# if username != "admin" and password != "admin":
-			# 	print(f"CLIENT {addr} DISCONNECTED")
-			# 	client_socket.close()
-			# 	return
+			password = hashlib.sha256(str.encode(password)).hexdigest() #hash password withs sha256
 
+			# if name not in HashTable:
+			# 	HashTable[name] = password
+			# 	client_socket.send(str.encode('REGISTERED SUCCESSFULLY!'))
+			# 	print('Registered : ',name)
+			# 	print("{:<8} {:<20}".format('USER','PASSWORD'))
+			# 	for k, v in HashTable.items():
+			# 		label, num = k,v
+			# 		print("{:<8} {:<20}".format(label, num))
+			# 		print("-------------------------------------------")
+			# else:
+			# 	if(HashTable[name] == password):
+			# 		client_socket.send(str.encode('Connection Successful')) # Response Code for Connected Client 
+			# 		print('Connected : ',name)
+			# 	else:
+			# 		client_socket.send(str.encode('Login Failed')) # Response code for login failed
+			# 		print('Connection denied : ',name)
+			# 		client_socket.close()
+			# 		return
+
+
+			# check username and password
+			if not user_exist(username):
+				register(username,password)
+			else:
+				if login(username,password):
+					client_socket.send(str.encode('Connection Successful')) # Response Code for Connected Client 
+					print('Connected : ',username)
+				else:
+					client_socket.send(str.encode('Login Failed')) # Response code for login failed
+					print('Connection denied : ',name)
+					client_socket.close()
+					return
+				
 			data = b""
 			payload_size = struct.calcsize("Q")
 			while True:
@@ -56,6 +94,7 @@ def show_client(addr,client_socket):
 	except Exception as e:
 		print(f"CLINET {addr} DISCONNECTED")
 		pass
+
 
 # receiver
 def receive_data(data,client_socket,payload_size):

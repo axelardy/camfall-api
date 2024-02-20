@@ -1,7 +1,6 @@
 
 import socket, cv2, struct
 import pyshine as ps 
-import cv2
 from ultralytics import YOLO
 import numpy as np
 import hashlib
@@ -12,6 +11,17 @@ from server_script.detect import FallDetector
 
 import time
 
+from flask import send_file
+from io import BytesIO
+
+import threading
+
+from flask import Flask, render_template, Response
+
+frames_lock = threading.Lock()
+frames = {}
+
+app = Flask(__name__)
 
 model = YOLO("../models/best.pt")
 
@@ -29,9 +39,36 @@ HashTable = {}
 
 fall = True
 
+@app.route('/')
+def index():
+	# This is a simple view that returns a basic page. You can expand it to show video feeds or other dynamic content.
+	return render_template('index.html')
+
+from flask import Response
+
+def generate_frames(addr):
+	global frames, frames_lock
+	while True:
+		with frames_lock:
+			frame_data = frames.get(addr)
+			
+		if frame_data is not None:
+
+			yield (b'--frame\r\n'
+				   b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
+
+@app.route('/video_feed/<addr>')
+def video_feed(addr):
+	addr = int(addr)
+	return Response(generate_frames(addr), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+def flask_server():
+	app.run()
+
 def show_client(addr,client_socket):
+	global frames
 	try:
-		print('CLIENT {} CONNECTED!'.format(addr))
+		print('CLIENT {} CONNECTED!'.format(addr[1]))
 		if client_socket: # if a client socket exists
 			client_socket.send(str.encode('ENTER USERNAME : ')) # Request Username
 			name = client_socket.recv(2048)
@@ -41,25 +78,6 @@ def show_client(addr,client_socket):
 			username = name.decode()			
 
 			password = hashlib.sha256(str.encode(password)).hexdigest() #hash password withs sha256
-
-			# if name not in HashTable:
-			# 	HashTable[name] = password
-			# 	client_socket.send(str.encode('REGISTERED SUCCESSFULLY!'))
-			# 	print('Registered : ',name)
-			# 	print("{:<8} {:<20}".format('USER','PASSWORD'))
-			# 	for k, v in HashTable.items():
-			# 		label, num = k,v
-			# 		print("{:<8} {:<20}".format(label, num))
-			# 		print("-------------------------------------------")
-			# else:
-			# 	if(HashTable[name] == password):
-			# 		client_socket.send(str.encode('Connection Successful')) # Response Code for Connected Client 
-			# 		print('Connected : ',name)
-			# 	else:
-			# 		client_socket.send(str.encode('Login Failed')) # Response code for login failed
-			# 		print('Connection denied : ',name)
-			# 		client_socket.close()
-			# 		return
 
 
 			# check username and password
@@ -98,8 +116,16 @@ def show_client(addr,client_socket):
 				# decode data into frame
 				frame = cv2.imdecode(np.frombuffer(frame_data, dtype=np.uint8), -1) # more efficient
 				# inference
-				frame,fall = inference_and_draw(frame,addr)				
+				frame,fall = inference_and_draw(frame,addr)	
+
+
+				# update frames and compress it to base64
+				frames[addr[1]] = cv2.imencode('.jpeg', frame)[1].tobytes()
+				#decode frames[addr[1]
 				
+				
+
+				# fall detection
 				fall_detector.update_fall_state(fall)
 
 				# show frame
@@ -110,9 +136,10 @@ def show_client(addr,client_socket):
 			client_socket.close()
 
 	except Exception as e:
-		print(f"CLINET {addr} DISCONNECTED")
+		print(f"CLIENT {addr[1]} DISCONNECTED")
 		pass
 
+# fall detection
 def fall_detect(fall_timestamps):
 	if fall:
 		fall_timestamps.append(time.time())
@@ -121,7 +148,7 @@ def fall_detect(fall_timestamps):
 	fall_timestamps = [x for x in fall_timestamps if current_time - x < 5]
 
 	if fall_timestamps and current_time - fall_timestamps[0] > 5:
-		# send_notification('CAMERA 1')
+		send_notification('CAMERA 1')
 		print('FALL DETECTED!')
 		fall_timestamps = []
 
@@ -162,7 +189,8 @@ def inference_and_draw(frame,addr):
 		fall_detected = False
 
 	return frame,fall_detected
-	
+
+# check variabel and notify	
 def check_variabel_and_notify():
 	global fall
 	was_fall = False

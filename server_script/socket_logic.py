@@ -18,22 +18,30 @@ import threading
 
 from flask import Flask, render_template, Response
 
+from queue import Queue
+
 frames_lock = threading.Lock()
 frames = {}
+
+queues = {}
 
 app = Flask(__name__)
 
 model = YOLO("../models/best.pt")
 
+# create a socket object for video ingest server
 server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 host_name  = socket.gethostname()
 host_ip = socket.gethostbyname(host_name)
-print('HOST IP:',host_ip)
 port = 5000
 socket_address = (host_ip,port)
 server_socket.bind(socket_address)
 server_socket.listen()
-print("Listening at",socket_address)
+print("Listening (Video Ingest Server) at",socket_address)
+
+# create a socket object for sending frames to flask
+
+
 
 HashTable = {}
 
@@ -48,14 +56,14 @@ from flask import Response
 
 def generate_frames(addr):
 	global frames, frames_lock
+	global queues
 	while True:
-		with frames_lock:
-			frame_data = frames.get(addr)
-			
+	# 	with frames_lock:
+	# 		frame_data = frames.get(addr)
+		frame_data = queues[addr].get()
 		if frame_data is not None:
-
 			yield (b'--frame\r\n'
-				   b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
+			   b'Content-Type: image/jpeg\r\n\r\n' + frame_data + b'\r\n')
 
 @app.route('/video_feed/<addr>')
 def video_feed(addr):
@@ -63,7 +71,7 @@ def video_feed(addr):
 	return Response(generate_frames(addr), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 def flask_server():
-	app.run()
+	app.run(threaded=True)
 
 def show_client(addr,client_socket):
 	global frames
@@ -97,10 +105,13 @@ def show_client(addr,client_socket):
 			payload_size = struct.calcsize("Q")
 
 			global fall
+			global queues
 
 			# thread = threading.Thread(target=check_variabel_and_notify).start()
 			# thread.start()
 
+			queues[addr[1]] = Queue()
+			
 			fall_detector = FallDetector()
 			fall_detector.start()
 
@@ -118,10 +129,10 @@ def show_client(addr,client_socket):
 				# inference
 				frame,fall = inference_and_draw(frame,addr)	
 
-
+				queues[addr[1]].put(cv2.imencode('.jpeg', frame)[1].tobytes())
 				# update frames and compress it to base64
-				frames[addr[1]] = cv2.imencode('.jpeg', frame)[1].tobytes()
-				#decode frames[addr[1]
+				# frames[addr[1]] = cv2.imencode('.jpeg', frame)[1].tobytes()
+
 				
 				
 
@@ -139,6 +150,10 @@ def show_client(addr,client_socket):
 		print(f"CLIENT {addr[1]} DISCONNECTED")
 		pass
 
+# send frame to flask using socket
+def send_frame_to_flask(addr,frame):
+	return
+
 # fall detection
 def fall_detect(fall_timestamps):
 	if fall:
@@ -151,7 +166,6 @@ def fall_detect(fall_timestamps):
 		send_notification('CAMERA 1')
 		print('FALL DETECTED!')
 		fall_timestamps = []
-
 
 # receiver
 def receive_data(data,client_socket,payload_size):

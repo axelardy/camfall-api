@@ -3,7 +3,6 @@ import socket, cv2, struct
 import pyshine as ps 
 from ultralytics import YOLO
 import numpy as np
-import hashlib
 
 from server_script.login_script.db_engine import *
 from server_script.send_notification import send_notification
@@ -16,14 +15,13 @@ from io import BytesIO
 
 import threading
 
-from flask import Flask, render_template, Response
+from flask import Flask, render_template, Response,redirect,url_for, request,make_response
+from flask_login import LoginManager
 
 from queue import Queue
 
-frames_lock = threading.Lock()
-frames = {}
 
-queues = {}
+
 
 app = Flask(__name__)
 
@@ -41,25 +39,53 @@ print("Listening (Video Ingest Server) at",socket_address)
 
 # create a socket object for sending frames to flask
 
+queues = {}
+client_sockets = {}
+cam_user = {}
 
-
-HashTable = {}
-
-fall = True
+fall = False
 
 @app.route('/')
 def index():
-	# This is a simple view that returns a basic page. You can expand it to show video feeds or other dynamic content.
+	global queues
 	return render_template('index.html')
 
-from flask import Response
+# check login status
+# return True if user is logged in
+def check_login_status():
+	username = request.cookies.get('username')
+	if not username or not user_exist(username):
+		return False,username
+	return True,username
+
+
+
+@app.route('/main')
+def Main():
+	global cam_user
+	status,username =check_login_status()
+	if  status == False:
+		return redirect('/login')
+	if username in cam_user:
+		cameras = cam_user[username]
+	else:
+		cameras = []
+	if check_email(username) == False:
+		alert = 'Please add your email on profile page to receive notification'
+		return render_template('main.html',alert = alert)
+	return render_template('main.html',cameras=cameras,username=username)
+
+@app.route('/logout',methods=['POST'])
+def logout():
+	resp = make_response(redirect(url_for('auth.login')))
+	resp.set_cookie('username', '', expires=0)
+	return resp
 
 def generate_frames(addr):
 	global frames, frames_lock
 	global queues
 	while True:
-	# 	with frames_lock:
-	# 		frame_data = frames.get(addr)
+
 		frame_data = queues[addr].get()
 		if frame_data is not None:
 			yield (b'--frame\r\n'
@@ -67,10 +93,46 @@ def generate_frames(addr):
 
 @app.route('/video_feed/<addr>')
 def video_feed(addr):
+	status, username = check_login_status()
+	print('STATUS : ',status)
+	print('USERNAME : ',username)
 	addr = int(addr)
+	if  status == False:
+		return redirect('/main')
+	if addr not in queues.keys():
+		return 'CAMERA NOT FOUND'
+	if cam_user[username].count(addr) == 0:
+		return 'ACCESS DENIED'
 	return Response(generate_frames(addr), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+@app.route('/profile')
+def profile():
+	status,username = check_login_status()
+	if status == False:
+		return redirect('/login')
+	return render_template('profile.html',username=username)
+
+#shutdown camera with this address
+@app.route('/shutdown',methods=['POST'])
+def shutdown():
+    addr = int(request.form.get('cam_id'))
+    status, username = check_login_status()
+    if status == False:
+        return redirect('/login')
+    if cam_user[username].count(addr) == 0:
+        return 'ACCESS DENIED'
+    if addr in client_sockets:
+        client_sockets[addr].close()
+        del client_sockets[addr]
+    return redirect(url_for('Main'))
+
 def flask_server():
+	from.auth import auth as auth_blueprint
+	app.register_blueprint(auth_blueprint)
+	from .email import email as email_blueprint
+	app.register_blueprint(email_blueprint)
+	app.secret_key = 'augghhhhh'
+	
 	app.run(threaded=True)
 
 def show_client(addr,client_socket):
@@ -85,35 +147,45 @@ def show_client(addr,client_socket):
 			password = password.decode()
 			username = name.decode()			
 
-			password = hashlib.sha256(str.encode(password)).hexdigest() #hash password withs sha256
+			password = hash_password(password) #hash password withs sha256
 
 
 			# check username and password
 			if not user_exist(username):
-				register(username,password)
+				client_socket.send(str.encode('Username doesn\'t exist, please sign up first!'))
+				print('Connection denied : ',name)
+				client_socket.close()
+				return
 			else:
-				if login(username,password):
-					client_socket.send(str.encode('Connection Successful')) # Response Code for Connected Client 
-					print('Connected : ',username)
+				if login_db(username,password):
+					# Response Code for Connected Client 
+					client_socket.send(str.encode('Connection Successful'+'\nid: ' + str(addr[1]))) 
+					print('Connected : ',username + '\nid: ' + str(addr[1]))
+					if username not in cam_user:
+						cam_user[username] = []
+					cam_user[username].append(addr[1])
+					client_sockets[addr[1]] = client_socket
 				else:
 					client_socket.send(str.encode('Login Failed')) # Response code for login failed
 					print('Connection denied : ',name)
 					client_socket.close()
 					return
-				
+			
+			print(cam_user)
+			# start receiving video from client
 			data = b""
 			payload_size = struct.calcsize("Q")
 
 			global fall
 			global queues
 
-			# thread = threading.Thread(target=check_variabel_and_notify).start()
-			# thread.start()
 
 			queues[addr[1]] = Queue()
-			
-			fall_detector = FallDetector()
-			fall_detector.start()
+			# start fall detection
+			# if email is available
+			fall_detector = FallDetector(addr[1],check_email(username),username)
+			if check_email(username) != False:
+				fall_detector.start()
 
 			# start receiving video from client
 			while True:
@@ -130,17 +202,13 @@ def show_client(addr,client_socket):
 				frame,fall = inference_and_draw(frame,addr)	
 
 				queues[addr[1]].put(cv2.imencode('.jpeg', frame)[1].tobytes())
-				# update frames and compress it to base64
-				# frames[addr[1]] = cv2.imencode('.jpeg', frame)[1].tobytes()
 
-				
-				
 
 				# fall detection
 				fall_detector.update_fall_state(fall)
 
 				# show frame
-				cv2.imshow(f"FROM {addr}",frame)
+ 
 				key = cv2.waitKey(1) & 0xFF
 				if key  == ord('q'):
 					break
@@ -148,24 +216,16 @@ def show_client(addr,client_socket):
 
 	except Exception as e:
 		print(f"CLIENT {addr[1]} DISCONNECTED")
+		queues[addr[1]].put(None)
+		del queues[addr[1]]
+
+		if addr[1] in cam_user[username]:
+			cam_user[username].remove(addr[1])
 		pass
 
-# send frame to flask using socket
-def send_frame_to_flask(addr,frame):
-	return
 
-# fall detection
-def fall_detect(fall_timestamps):
-	if fall:
-		fall_timestamps.append(time.time())
-				
-	current_time = time.time()
-	fall_timestamps = [x for x in fall_timestamps if current_time - x < 5]
 
-	if fall_timestamps and current_time - fall_timestamps[0] > 5:
-		send_notification('CAMERA 1')
-		print('FALL DETECTED!')
-		fall_timestamps = []
+
 
 # receiver
 def receive_data(data,client_socket,payload_size):
@@ -203,25 +263,3 @@ def inference_and_draw(frame,addr):
 		fall_detected = False
 
 	return frame,fall_detected
-
-# check variabel and notify	
-def check_variabel_and_notify():
-	global fall
-	was_fall = False
-	start_time = None
-
-	while True:
-		#check if fall detected
-		if fall:
-			if not was_fall:
-				start_time = time.time()
-				was_fall = True
-			else:
-				if time.time() - start_time > 5:
-					# send_notification('CAMERA 1')
-					print('FALL DETECTED!')
-					was_fall = False
-					fall = False
-		else:
-			was_fall = False
-		

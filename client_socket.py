@@ -4,11 +4,24 @@ import imutils
 import time
 import argparse
 import getpass
+import device
+
+
 
 def run_connection(camera=True, host_ip=socket.gethostbyname(socket.gethostname()), port=5000):
+
 	try:
 		if camera == True:
-			vid = cv2.VideoCapture(1)
+			# print device list
+			device_list = device.getDeviceList()
+			index = 0
+			for cam in device_list:
+				print(str(index)+' : '+cam[0])
+				index += 1
+			# select camera
+			camera_index = input('select camera :')
+			vid = cv2.VideoCapture(int(camera_index))
+
 		else:
 			vid = cv2.VideoCapture('test.mp4')
 		client_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -18,6 +31,7 @@ def run_connection(camera=True, host_ip=socket.gethostbyname(socket.gethostname(
 		# client_socket.send('password'.encode())
 
 		if client_socket:
+
 			response = client_socket.recv(2048)
 
 			login_id = input(response.decode())

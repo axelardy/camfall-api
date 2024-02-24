@@ -1,14 +1,15 @@
 import smtplib
 
 
-def send_notification(camera):
+def send_notification(camera,target,username):
     host = "smtp.gmail.com"
     port = 587
     from_mail = "axelardy06@gmail.com"
-    to_mail = 'axelardywt@gmail.com'
+    to_mail = target
     password = "lcrxdwcjbzrkjyjq"
-    msg = """Subject: Notification from Server
-Fall detected from {camera}! Please check the server for more details.
+    msg = f"""Subject: Notification from Server
+Hi {username}!
+Fall detected from camera {camera}! Please check the server for more details.
 Thanks"""
 
     smtp = smtplib.SMTP(host, port)

@@ -4,12 +4,15 @@ import threading
 from server_script.send_notification import send_notification
 
 class FallDetector(threading.Thread):
-    def __init__(self):
+    def __init__(self,camera_id,target,user):
         super().__init__()
         self.fall_start_time = None
         self.fall_detected_continuously = False
         self.fall = False  
         self.running = True
+        self.target = target
+        self.camera_id = camera_id
+        self.user = user
         
     def run(self):
         while self.running:
@@ -27,7 +30,7 @@ class FallDetector(threading.Thread):
                 self.fall_start_time = time.time()
             elif time.time() - self.fall_start_time >= 5 and not self.fall_detected_continuously:
                 print("Fall has been detected continuously for at least 5 seconds.")
-                send_notification('CAMERA 1')
+                send_notification(self.camera_id,self.target,self.user)
                 self.fall_detected_continuously = True
         else:
             if self.fall_detected_continuously:

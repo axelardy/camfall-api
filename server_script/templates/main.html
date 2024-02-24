@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fall Detection</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
+    <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/login-register.css') }}">
+
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #333;
+        }
+        #result {
+            margin-bottom: 20px;
+        }
+        input[type=number], button {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        img {
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .container {
+            text-align: center;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="profile">
+        <span id="username">{{username}}</span>
+        <button onclick="location.href='/profile'">Profile</button>
+        <form action="/logout" method="post" style="display: inline;">
+            <button type="submit">Logout</button>
+        </form>
+    </div>
+    <div class="container">
+        <h1>Fall Detection</h1>
+        <div id="result">Please enter the camera address to view the feed.</div>
+        <select id="address" placeholder="Select Camera" >
+                <option value="0">Select Camera</option>
+            {% for camera in cameras %}
+                <option value="{{ camera }}">{{ camera }}</option>
+            {% endfor %}
+        </select>
+        <div class="form-group:">
+            <img id="image" src="" alt="Live Feed" width="640" height="480">
+        </div>
+        <form method="POST" action="/shutdown">
+            <input type="hidden" id="cam_id" name="cam_id">
+            <button id='turnoff' type="submit" onclick="setCamId()" disabled>Turn off</button>
+        </form>
+    </div>
+
+    <script>
+        function changeAddress() {
+            var address = document.getElementById("address").value;
+            if (address) {
+                document.getElementById("image").src = "/video_feed/" + address;
+                document.getElementById("result").textContent = "Live feed from address: " + address;
+            } else {
+                document.getElementById("result").textContent = "Please enter a valid camera address.";
+            }
+        }
+        var alertmsg = "{{ alert }}";
+        if (alertmsg) {
+            alert(alertmsg);
+        }
+        function setCamId() {
+            var address = document.getElementById("address").value;
+            document.getElementById("cam_id").value = address;
+        }
+        document.getElementById('address').addEventListener('change', function() {
+            changeAddress();
+            var address = document.getElementById('address').value;
+            if (address == '0') {
+                document.getElementById('turnoff').disabled = true;
+            } else {
+                document.getElementById('turnoff').disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -9,5 +9,4 @@ if __name__ == "__main__":
 		client_socket,addr = server_socket.accept()
 		thread = threading.Thread(target=show_client, args=(addr,client_socket))
 		thread.start()
-		print("TOTAL CLIENTS ",threading.active_count() - 1)
-	x
+		print("TOTAL CLIENTS ",threading.active_count() - 2)

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/login-register.css') }}">
+<title>Profile Page</title>
+
+</head>
+<style>
+        .profile button  {
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+        }
+        .profile button:hover {
+            background-color: #0056b3;
+        }
+        .profile button {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+</style>
+<body>
+    <div class="profile">
+        <span id="username">{{username}}</span>
+        <button onclick="location.href='/main'">Main</button>
+        </form>
+    </div>
+    <div class="container">
+        <h1>Hi {{username}}</h1>
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="positive alert-positive">
+                {{ messages[0] }}
+            </div>
+        {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="/contact">
+            <div class="form-group">
+                <label for="username">Email notification receiver</label>
+                <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                <label for="username">Line real ID</label>
+                <input type="text" id="lineid" name="lineid" placeholder="Enter your Line ID" >
+                
+
+                <label class="switch">
+                    <input type="checkbox" id="line_notif" name="line_notif">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <input type="hidden" id="username" name="username" value="{{ username }}">
+            <div class="form-group">
+                <button type="submit">Submit</button>
+            </div>
+        </form>
+    </div>
+</body> 
+</html>

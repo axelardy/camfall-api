@@ -38,10 +38,18 @@
         {% endif %}
         {% endwith %}
 
-        <form method="POST" action="/email">
+        <form method="POST" action="/contact">
             <div class="form-group">
                 <label for="username">Email notification receiver</label>
-                <input type="text" id="email" name="email" placeholder="Enter your email" required>
+                <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                <label for="username">Line real ID</label>
+                <input type="text" id="lineid" name="lineid" placeholder="Enter your Line ID" >
+                
+
+                <label class="switch">
+                    <input type="checkbox" id="line_notif" name="line_notif">
+                    <span class="slider round"></span>
+                </label>
             </div>
             <input type="hidden" id="username" name="username" value="{{ username }}">
             <div class="form-group">
@@ -49,5 +57,5 @@
             </div>
         </form>
     </div>
-</body>
+</body> 
 </html>

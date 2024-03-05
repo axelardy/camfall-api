@@ -13,16 +13,18 @@ class User(Base):
 
     id = Column(Integer, primary_key=True)
     username = Column(String(25), unique=True, nullable=False)
-    password = Column(String(),nullable=False)
+    password = Column(String(50 ),nullable=False)
 
-class Email(Base):
-    __tablename__ = 'emails'
+class Contact(Base):
+    __tablename__ = 'contact'
 
     id = Column(Integer, primary_key=True)
     username = Column(String(25), ForeignKey('users.username'), nullable=False)
     email = Column(String(50), nullable=False)
+    lineid = Column(String(50), nullable=True)
+    line_notif = Column(Boolean, nullable=False, default=False)
 
-    user = relationship('User', backref='emails')
+    user = relationship('User', backref='contact')
 
 def get_engine(user,passwd,host, port, db):
     url = f"postgresql://{user}:{passwd}@{host}:{port}/{db}"
@@ -66,23 +68,23 @@ def signup_db(username,password):
     session.commit()
     print('Registered : ',username)
 
-def email_logic(username,email):
-    new_email = Email(username=username, email=email)
+def contact_logic(username,email,lineid=None,line_notif=False):
+    new_contact = Contact(username=username, email=email, lineid=lineid, line_notif=line_notif)
     # if username exist just change the email
-    if session.query(Email).filter(Email.username == username).first():
-        session.query(Email).filter(Email.username == username).update({'email':email})
+    if session.query(Contact).filter(Contact.username == username).first():
+        session.query(Contact).filter(Contact.username == username).update({'email':email,'lineid':lineid,'line_notif':line_notif})
         session.commit()
         print('Email updated : ',email)
         return
     else:
-        session.add(new_email)
+        session.add(new_contact)
         session.commit()
         print('Email added : ',email)
 
-def check_email(username):
-    email = session.query(Email).filter(Email.username == username).first()
-    if email:
-        return email.email
+def check_contact(username):
+    contact = session.query(Contact).filter(Contact.username == username).first()
+    if contact:
+        return dict(email=contact.email,lineid=contact.lineid,line_notif=contact.line_notif)
     return False
     
 def hash_password(password):

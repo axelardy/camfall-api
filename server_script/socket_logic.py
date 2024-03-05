@@ -70,7 +70,7 @@ def Main():
 		cameras = cam_user[username]
 	else:
 		cameras = []
-	if check_email(username) == False:
+	if check_contact(username) == False:
 		alert = 'Please add your email on profile page to receive notification'
 		return render_template('main.html',alert = alert)
 	return render_template('main.html',cameras=cameras,username=username)
@@ -129,11 +129,11 @@ def shutdown():
 def flask_server():
 	from.auth import auth as auth_blueprint
 	app.register_blueprint(auth_blueprint)
-	from .email import email as email_blueprint
-	app.register_blueprint(email_blueprint)
+	from .contact_route import contact as contact_blueprint
+	app.register_blueprint(contact_blueprint)
 	app.secret_key = 'augghhhhh'
 	
-	app.run(threaded=True)
+	app.run(threaded=True,host='0.0.0.0')
 
 def show_client(addr,client_socket):
 	global frames
@@ -183,8 +183,8 @@ def show_client(addr,client_socket):
 			queues[addr[1]] = Queue()
 			# start fall detection
 			# if email is available
-			fall_detector = FallDetector(addr[1],check_email(username),username)
-			if check_email(username) != False:
+			fall_detector = FallDetector(addr[1],check_contact(username),username)
+			if check_contact(username) != False:
 				fall_detector.start()
 
 			# start receiving video from client
@@ -254,8 +254,8 @@ def inference_and_draw(frame,addr):
 				(int(fall_box[2]),
 				 int(fall_box[3])),
 				 (0, 0, 255), 2)
-	frame =  ps.putBText(frame,text,10,10,vspace=10,hspace=1,font_scale=0.7,
-			 			background_RGB=(255,0,0),text_RGB=(255,250,250))
+	# frame =  ps.putBText(frame,text,10,10,vspace=10,hspace=1,font_scale=0.7,
+	# 		 			background_RGB=(255,0,0),text_RGB=(255,250,250))
 	
 	if fall_box.size > 0:
 		fall_detected = True
